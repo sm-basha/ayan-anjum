@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Typing Blast Game</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -42,11 +42,10 @@
     const blastSound = document.getElementById('blastSound');
     let score = 0;
     let hits = 0;
-    let spawnInterval = 2000; // start slow
+    let letters = [];
+    let words = ["CAT", "DOG", "SUN", "BIRD", "FISH"];
+    let spawnInterval = 3000; // very slow at start
     let spawnTimer;
-
-    const letters = [];
-    const words = ["CAT", "DOG", "SUN", "BIRD", "FISH"];
 
     class Letter {
       constructor(char, x, y, isWord = false) {
@@ -77,20 +76,20 @@
       update() {
         if (this.blast) {
           this.blastFrame++;
-          if (this.blastFrame > 10) return false;
+          return this.blastFrame <= 10;
         } else {
           this.y += this.speed;
+          this.draw();
+          return this.y <= canvas.height;
         }
-        this.draw();
-        return true;
       }
     }
 
     function spawnLetter() {
-      if (letters.length >= 10) return; // limit max letters on screen
+      if (letters.length >= 5) return; // max 5 letters on screen
 
       if (hits >= 10) {
-        const word = words[Math.floor(Math.random() * words.length)];
+        let word = words[Math.floor(Math.random() * words.length)];
         letters.push(new Letter(word, Math.random() * (canvas.width - 100), 0, true));
         hits = 0;
       } else {
@@ -100,6 +99,15 @@
       }
     }
 
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let i = letters.length - 1; i >= 0; i--) {
+        let alive = letters[i].update();
+        if (!alive) letters.splice(i, 1);
+      }
+      requestAnimationFrame(animate);
+    }
+
     function updateScore() {
       document.getElementById("score").innerText = `Score: ${score}`;
     }
@@ -107,19 +115,9 @@
     function adjustSpeed() {
       clearInterval(spawnTimer);
       let level = Math.floor((score - 200) / 100);
-      spawnInterval = Math.max(100, 2000 - level * 200); // not faster than 100ms
+      let speed = 1000; // 1 letter per second
+      spawnInterval = score >= 200 ? speed : 3000;
       spawnTimer = setInterval(spawnLetter, spawnInterval);
-    }
-
-    function animate() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      for (let i = letters.length - 1; i >= 0; i--) {
-        let alive = letters[i].update();
-        if (!alive || letters[i].y > canvas.height) {
-          letters.splice(i, 1);
-        }
-      }
-      requestAnimationFrame(animate);
     }
 
     window.addEventListener("keydown", (e) => {
@@ -134,7 +132,7 @@
           score += 10;
           hits++;
           updateScore();
-          if (score >= 200 && score % 100 === 0) adjustSpeed();
+          if (score >= 200 && score <= 1000 && score % 100 === 0) adjustSpeed();
           break;
         } else if (item.isWord && item.char[0] === key) {
           item.char = item.char.slice(1);
@@ -144,7 +142,7 @@
             item.blast = true;
             score += 100;
             updateScore();
-            if (score >= 200 && score % 100 === 0) adjustSpeed();
+            if (score >= 200 && score <= 1000 && score % 100 === 0) adjustSpeed();
           }
           break;
         }
