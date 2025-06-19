@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Typing Blast Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: linear-gradient(to top right, #a1c4fd, #c2e9fb);
+      font-family: 'Comic Sans MS', cursive, sans-serif;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      background-color: rgba(255,255,255,0.2);
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #222;
+      font-size: 1.5em;
+      background: #fff6;
+      padding: 10px 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+  <div id="score">Score: 0</div>
+  <canvas id="game"></canvas>
+  <audio id="blastSound" src="explosion-91872.mp3"></audio>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const blastSound = document.getElementById('blastSound');
+    let score = 0;
+    let hits = 0;
+    let spawnInterval = 2000; // start slow
+    let spawnTimer;
+
+    const letters = [];
+    const words = ["CAT", "DOG", "SUN", "BIRD", "FISH"];
+
+    class Letter {
+      constructor(char, x, y, isWord = false) {
+        this.char = char;
+        this.fullWord = char;
+        this.x = x;
+        this.y = y;
+        this.speed = 0.5;
+        this.isWord = isWord;
+        this.color = isWord ? "#ff6347" : `hsl(${Math.random() * 360}, 70%, 60%)`;
+        this.blast = false;
+        this.blastFrame = 0;
+      }
+
+      draw() {
+        if (this.blast) {
+          ctx.fillStyle = "#FFD700";
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.blastFrame * 3, 0, Math.PI * 2);
+          ctx.fill();
+        } else {
+          ctx.fillStyle = this.color;
+          ctx.font = this.isWord ? "bold 40px Comic Sans MS" : "30px Comic Sans MS";
+          ctx.fillText(this.char, this.x, this.y);
+        }
+      }
+
+      update() {
+        if (this.blast) {
+          this.blastFrame++;
+          if (this.blastFrame > 10) return false;
+        } else {
+          this.y += this.speed;
+        }
+        this.draw();
+        return true;
+      }
+    }
+
+    function spawnLetter() {
+      if (letters.length >= 10) return; // limit max letters on screen
+
+      if (hits >= 10) {
+        const word = words[Math.floor(Math.random() * words.length)];
+        letters.push(new Letter(word, Math.random() * (canvas.width - 100), 0, true));
+        hits = 0;
+      } else {
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+        const char = chars.charAt(Math.floor(Math.random() * chars.length));
+        letters.push(new Letter(char, Math.random() * (canvas.width - 30), 0));
+      }
+    }
+
+    function updateScore() {
+      document.getElementById("score").innerText = `Score: ${score}`;
+    }
+
+    function adjustSpeed() {
+      clearInterval(spawnTimer);
+      let level = Math.floor((score - 200) / 100);
+      spawnInterval = Math.max(100, 2000 - level * 200); // not faster than 100ms
+      spawnTimer = setInterval(spawnLetter, spawnInterval);
+    }
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let i = letters.length - 1; i >= 0; i--) {
+        let alive = letters[i].update();
+        if (!alive || letters[i].y > canvas.height) {
+          letters.splice(i, 1);
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+
+    window.addEventListener("keydown", (e) => {
+      const key = e.key.toUpperCase();
+      for (let i = 0; i < letters.length; i++) {
+        const item = letters[i];
+        if (!item.isWord && item.char === key) {
+          blastSound.currentTime = 0;
+          blastSound.play();
+          item.blast = true;
+          item.char = "";
+          score += 10;
+          hits++;
+          updateScore();
+          if (score >= 200 && score % 100 === 0) adjustSpeed();
+          break;
+        } else if (item.isWord && item.char[0] === key) {
+          item.char = item.char.slice(1);
+          blastSound.currentTime = 0;
+          blastSound.play();
+          if (item.char === "") {
+            item.blast = true;
+            score += 100;
+            updateScore();
+            if (score >= 200 && score % 100 === 0) adjustSpeed();
+          }
+          break;
+        }
+      }
+    });
+
+    spawnTimer = setInterval(spawnLetter, spawnInterval);
+    animate();
+  </script>
+</body>
+</html>
